@@ -8,9 +8,12 @@ from pathlib import Path
 import duckdb
 
 from ..extraction.commune_splitter import CommuneNotice
+from ..extraction.iron_age_filter import IronAgeFilter
 from ..extraction.record_builder import SiteRecord
 
 logger = logging.getLogger(__name__)
+
+_filter = IronAgeFilter()
 
 
 def load_records(
@@ -55,20 +58,22 @@ def _load_notices(con: duckdb.DuckDBPyConnection, records: list[SiteRecord]) -> 
     for r in records:
         con.execute(
             "INSERT INTO notices (notice_id, commune_id, sous_notice_code, lieu_dit, "
-            "type_site, raw_text, full_text, page_number, has_iron_age) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "type_site, raw_text, full_text, page_number, has_iron_age, confidence_level) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [r.notice_id, r.commune_id, r.sous_notice_code, r.lieu_dit,
-             r.type_site, r.raw_text, r.full_text, r.page_number, r.has_iron_age],
+             r.type_site, r.raw_text, r.full_text, r.page_number, r.has_iron_age,
+             r.confidence_level],
         )
 
 
 def _load_periodes(con: duckdb.DuckDBPyConnection, records: list[SiteRecord]) -> None:
     for r in records:
         for p in r.all_periods:
-            is_fer = p.lower() in ("hallstatt", "la tène") or "fer" in p.lower()
+            norm = _filter.normalize_period(p)
+            is_fer = _filter.is_fer_norm(norm) if norm else False
             con.execute(
-                "INSERT INTO periodes (notice_id, periode, is_iron_age) VALUES (?, ?, ?)",
-                [r.notice_id, p, is_fer],
+                "INSERT INTO periodes (notice_id, periode, periode_norm, is_iron_age) VALUES (?, ?, ?, ?)",
+                [r.notice_id, p, norm, is_fer],
             )
 
 

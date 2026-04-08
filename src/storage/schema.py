@@ -20,34 +20,36 @@ CREATE TABLE IF NOT EXISTS communes (
 
 CREATE TABLE IF NOT EXISTS notices (
     notice_id         VARCHAR PRIMARY KEY,
-    commune_id        VARCHAR NOT NULL,
+    commune_id        VARCHAR NOT NULL REFERENCES communes(commune_id),
     sous_notice_code  VARCHAR,
     lieu_dit          VARCHAR,
     type_site         VARCHAR,
     raw_text          VARCHAR,
     full_text         VARCHAR,
     page_number       INTEGER,
-    has_iron_age      BOOLEAN DEFAULT false
+    has_iron_age      BOOLEAN DEFAULT false,
+    confidence_level  VARCHAR DEFAULT 'LOW'
 );
 
 CREATE TABLE IF NOT EXISTS periodes (
-    notice_id     VARCHAR NOT NULL,
+    notice_id     VARCHAR NOT NULL REFERENCES notices(notice_id),
     periode       VARCHAR NOT NULL,
+    periode_norm  VARCHAR,
     is_iron_age   BOOLEAN DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS vestiges (
-    notice_id     VARCHAR NOT NULL,
+    notice_id     VARCHAR NOT NULL REFERENCES notices(notice_id),
     vestige       VARCHAR NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS bibliographie (
-    notice_id     VARCHAR NOT NULL,
+    notice_id     VARCHAR NOT NULL REFERENCES notices(notice_id),
     reference     VARCHAR NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS figures (
-    notice_id     VARCHAR NOT NULL,
+    notice_id     VARCHAR NOT NULL REFERENCES notices(notice_id),
     figure_ref    VARCHAR NOT NULL,
     page_number   INTEGER
 );
@@ -71,8 +73,17 @@ SELECT type_site, COUNT(*) AS count,
 FROM notices GROUP BY type_site ORDER BY count DESC;
 
 CREATE OR REPLACE VIEW v_stats_by_periode AS
-SELECT p.periode, p.is_iron_age, COUNT(DISTINCT p.notice_id) AS notice_count
-FROM periodes p GROUP BY p.periode, p.is_iron_age ORDER BY notice_count DESC;
+SELECT p.periode, p.periode_norm, p.is_iron_age, COUNT(DISTINCT p.notice_id) AS notice_count
+FROM periodes p GROUP BY p.periode, p.periode_norm, p.is_iron_age ORDER BY notice_count DESC;
+
+CREATE OR REPLACE VIEW v_period_cooccurrence AS
+SELECT a.periode_norm AS period_a, b.periode_norm AS period_b,
+       COUNT(DISTINCT a.notice_id) AS co_count
+FROM periodes a
+JOIN periodes b ON a.notice_id = b.notice_id AND a.periode_norm < b.periode_norm
+WHERE a.periode_norm IS NOT NULL AND b.periode_norm IS NOT NULL
+GROUP BY a.periode_norm, b.periode_norm
+ORDER BY co_count DESC;
 """
 
 

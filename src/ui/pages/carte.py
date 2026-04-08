@@ -5,19 +5,13 @@ from __future__ import annotations
 import dash
 from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
-import plotly.express as px
 import pandas as pd
 from pathlib import Path
 
 from ...storage.queries import get_commune_stats, get_all_notices
+from ..components.commune_map import create_commune_map, empty_map, TYPE_COLORS
 
 dash.register_page(__name__, path="/", name="Carte", title="CAG 67/1 — Carte")
-
-_TYPE_COLORS = {
-    "nécropole": "#6A3D9A", "habitat": "#1F78B4", "oppidum": "#E31A1C",
-    "dépôt": "#FF7F00", "sanctuaire": "#33A02C", "atelier": "#B15928",
-    "tumulus": "#FB9A99", "indéterminé": "#B2DF8A",
-}
 
 layout = dbc.Row([
     dbc.Col([
@@ -25,12 +19,22 @@ layout = dbc.Row([
         dbc.Label("Type de site"),
         dcc.Dropdown(
             id="carte-type-filter",
-            options=[{"label": t, "value": t} for t in _TYPE_COLORS],
+            options=[{"label": t, "value": t} for t in TYPE_COLORS],
             multi=True,
             placeholder="Tous les types",
             className="mb-3",
         ),
-        dbc.Switch(id="carte-fer-only", label="Fer uniquement", value=True, className="mb-3"),
+        dbc.Label("Période normalisée"),
+        dcc.Dropdown(
+            id="carte-period-filter",
+            multi=True,
+            placeholder="Toutes les périodes",
+            className="mb-3",
+        ),
+        dbc.Label("Notices minimum"),
+        dcc.Slider(id="carte-min-notices", min=1, max=20, step=1, value=1,
+                   marks={1: "1", 5: "5", 10: "10", 20: "20"}),
+        dbc.Switch(id="carte-fer-only", label="Fer uniquement", value=True, className="mt-3 mb-3"),
         html.Hr(),
         html.Div(id="carte-detail-panel"),
     ], width=3, style={"maxHeight": "85vh", "overflowY": "auto"}),
@@ -43,50 +47,31 @@ layout = dbc.Row([
 @callback(
     Output("carte-map", "figure"),
     Input("carte-type-filter", "value"),
+    Input("carte-period-filter", "value"),
+    Input("carte-min-notices", "value"),
     Input("carte-fer-only", "value"),
     State("store-db-path", "data"),
 )
-def update_map(types: list[str] | None, fer_only: bool, db_path: str) -> dict:
+def update_map(types: list[str] | None, periods: list[str] | None,
+               min_notices: int, fer_only: bool, db_path: str) -> dict:
     db = Path(db_path)
     if not db.exists():
-        return _empty_map()
+        return empty_map()
 
     stats = get_commune_stats(db)
     df = pd.DataFrame(stats)
 
     if df.empty or "latitude" not in df.columns:
-        return _empty_map()
+        return empty_map()
 
     df = df.dropna(subset=["latitude", "longitude"])
-
     col = "fer_notices" if fer_only else "total_notices"
-    df = df[df[col] > 0]
+    df = df[df[col] >= (min_notices or 1)]
 
     if df.empty:
-        return _empty_map()
+        return empty_map()
 
-    fig = px.scatter_mapbox(
-        df,
-        lat="latitude",
-        lon="longitude",
-        size=col,
-        color=col,
-        color_continuous_scale="YlOrRd",
-        hover_name="commune_name",
-        hover_data={"commune_id": True, "fer_notices": True, "total_notices": True,
-                     "latitude": False, "longitude": False},
-        zoom=8.5,
-        center={"lat": 48.6, "lon": 7.75},
-        mapbox_style="carto-darkmatter",
-        size_max=20,
-    )
-    fig.update_layout(
-        margin={"r": 0, "t": 0, "l": 0, "b": 0},
-        paper_bgcolor="#0f0f1a",
-        plot_bgcolor="#0f0f1a",
-        font_color="white",
-    )
-    return fig
+    return create_commune_map(df, size_col=col)
 
 
 @callback(
@@ -119,20 +104,13 @@ def show_detail(click_data: dict | None, db_path: str) -> list:
         code = n.get("sous_notice_code", "")
         lieu = n.get("lieu_dit", "")
         label = f"({code}) {lieu}" if code else lieu or "Notice"
+        conf = n.get("confidence_level", "LOW")
+        conf_colors = {"HIGH": "success", "MEDIUM": "warning", "LOW": "secondary"}
         children.append(dbc.Card(dbc.CardBody([
             html.H6(label, className="text-info mb-1"),
             html.Small(n.get("type_site", ""), className="badge bg-secondary me-1"),
+            html.Small(conf, className=f"badge bg-{conf_colors.get(conf, 'secondary')} me-1"),
             html.P(n.get("raw_text", "")[:200] + "...", className="small text-light mt-1 mb-0"),
         ]), className="mb-2", style={"backgroundColor": "#16182d"}))
 
     return children
-
-
-def _empty_map() -> dict:
-    fig = px.scatter_mapbox(
-        pd.DataFrame({"lat": [48.6], "lon": [7.75]}),
-        lat="lat", lon="lon", zoom=8, mapbox_style="carto-darkmatter",
-    )
-    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},
-                      paper_bgcolor="#0f0f1a")
-    return fig

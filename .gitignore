@@ -11,7 +11,7 @@ data/*.duckdb
 data/*.duckdb.wal
 
 # Geocoder cache
-data/geocoder_cache.json
+data/communes_geo.json
 
 # IDE
 .vscode/

@@ -36,8 +36,8 @@ class PDFReader:
         with pdfplumber.open(self._pdf_path) as pdf:
             for i in range(self._start - 1, min(self._end, len(pdf.pages))):
                 page = pdf.pages[i]
-                text = self._extract_two_columns(page)
                 tables = page.extract_tables() or []
+                text = self._extract_text(page, has_tables=bool(tables))
                 commune_header = self._detect_commune_header(text)
 
                 results.append(PageText(
@@ -47,15 +47,21 @@ class PDFReader:
                     tables=tables,
                 ))
 
-                if (i - self._start) % 50 == 0:
+                if (i - self._start + 1) % 50 == 0:
                     logger.debug("  page %d/%d", i + 1, self._end)
 
         logger.info("PDFReader: %d pages extracted", len(results))
         return results
 
     @staticmethod
-    def _extract_two_columns(page: pdfplumber.page.Page) -> str:
-        """Crop page into left/right halves and concatenate text."""
+    def _extract_text(page: pdfplumber.page.Page, *, has_tables: bool) -> str:
+        """Extract text, falling back to full-page if tables span both columns."""
+        if has_tables:
+            full = (page.extract_text() or "").strip()
+            if full:
+                logger.debug("Page %d: full-page fallback (tables detected)", page.page_number)
+                return full
+
         width = page.width
         height = page.height
 
@@ -72,4 +78,10 @@ class PDFReader:
     @staticmethod
     def _detect_commune_header(text: str) -> str | None:
         m = _COMMUNE_HEADER_RE.search(text[:200])
-        return m.group(1) if m else None
+        if not m:
+            return None
+        raw = m.group(1)
+        if " à " in raw:
+            parts = raw.split(" à ")
+            return f"{parts[0].strip()}-{parts[1].strip()}"
+        return raw

@@ -48,7 +48,7 @@ class CommuneSplitter:
 
             notices.append(CommuneNotice(
                 commune_id=m.group(1),
-                commune_name=m.group(2).strip().rstrip("("),
+                commune_name=m.group(2).strip().rstrip("(").strip(),
                 text=notice_text,
                 page_start=page_start,
                 page_end=page_end,

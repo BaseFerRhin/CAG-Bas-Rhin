@@ -73,12 +73,20 @@ python -m src.ui
 | **Carte** | Communes sur carte, taille = nb notices Fer, filtres type/période |
 | **Notices** | Navigateur de texte, recherche, highlight mots-clés, tags |
 | **Chronologie** | Frise toutes périodes, zoom Fer, heatmap co-occurrences |
-| **Statistiques** | KPIs, donut types, top communes, treemap vestiges |
+| **Statistiques** | KPIs, donut types, top communes, treemap vestiges, confiance |
 
-### 4. Export vers BaseFerRhin
+### 4. Statistiques et EDA
+
+```bash
+python -m src stats                  # KPIs et distributions
+python -m src eda                    # EDA détaillé (outliers, distributions)
+```
+
+### 5. Export vers BaseFerRhin
 
 ```bash
 python -m src export --format raw-records --output ../../data/sources/cag67_records.json
+python -m src export --all -o export/all_records.json   # toutes les notices
 ```
 
 ## Architecture
@@ -114,7 +122,7 @@ src/
 |---|---|
 | `communes` | 998 communes avec centroïdes géocodés |
 | `notices` | Toutes les sous-notices (texte, type, page, Fer/non-Fer) |
-| `periodes` | Mentions chronologiques par notice |
+| `periodes` | Mentions chronologiques par notice (brut + normalisé) |
 | `vestiges` | Vestiges détectés par notice |
 | `bibliographie` | Références bibliographiques |
 | `figures` | Références aux figures du PDF |
@@ -125,6 +133,7 @@ src/
 | `v_stats_by_commune` | Agrégation par commune (total, Fer, types) |
 | `v_stats_by_type` | Ventilation par type de site |
 | `v_stats_by_periode` | Ventilation par période |
+| `v_period_cooccurrence` | Co-occurrences de périodes par notice |
 
 ## Tests
 

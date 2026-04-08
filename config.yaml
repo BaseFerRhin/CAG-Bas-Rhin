@@ -11,7 +11,8 @@ db_path: data/cag67.duckdb
 
 geocoding:
   provider: ban
-  cache_path: data/geocoder_cache.json
+  cache_path: data/communes_geo.json
+  throttle_rps: 10
 
 ui:
   port: 8051

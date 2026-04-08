@@ -13,6 +13,12 @@ from ...storage.queries import get_summary_stats, get_commune_stats
 
 dash.register_page(__name__, path="/stats", name="Statistiques", title="CAG 67/1 — Stats")
 
+_TYPE_COLORS = {
+    "nécropole": "#6A3D9A", "habitat": "#1F78B4", "oppidum": "#E31A1C",
+    "tumulus": "#FB9A99", "sépulture": "#CAB2D6", "sanctuaire": "#33A02C",
+    "dépôt": "#FF7F00", "atelier": "#B15928", "indéterminé": "#B2DF8A",
+}
+
 layout = html.Div([
     html.H4("Statistiques — CAG 67/1", className="text-warning mb-4"),
     dbc.Row(id="stats-kpis", className="mb-4"),
@@ -21,7 +27,8 @@ layout = html.Div([
         dbc.Col(dcc.Graph(id="stats-top-communes"), width=8),
     ]),
     dbc.Row([
-        dbc.Col(dcc.Graph(id="stats-vestiges-treemap"), width=12, className="mt-3"),
+        dbc.Col(dcc.Graph(id="stats-vestiges-treemap"), width=8, className="mt-3"),
+        dbc.Col(dcc.Graph(id="stats-confidence"), width=4, className="mt-3"),
     ]),
 ])
 
@@ -31,13 +38,14 @@ layout = html.Div([
     Output("stats-type-donut", "figure"),
     Output("stats-top-communes", "figure"),
     Output("stats-vestiges-treemap", "figure"),
+    Output("stats-confidence", "figure"),
     Input("store-db-path", "data"),
 )
 def update_stats(db_path: str):
     db = Path(db_path)
     if not db.exists():
         empty = px.bar(title="Base non trouvée")
-        return [], empty, empty, empty
+        return [], empty, empty, empty, empty
 
     s = get_summary_stats(db)
 
@@ -45,17 +53,14 @@ def update_stats(db_path: str):
         _kpi_card("Communes", s["communes"], "#1F78B4"),
         _kpi_card("Notices", s["notices"], "#6A3D9A"),
         _kpi_card("Notices Fer", s["fer_notices"], "#D95F02"),
-        _kpi_card("Géocodées", s["geocoded"], "#33A02C"),
+        _kpi_card("Figures", s["figures"], "#33A02C"),
     ])
 
+    # Donut chart: site types
     type_df = pd.DataFrame(s["by_type"], columns=["type_site", "count"])
     fig_type = px.pie(
         type_df, values="count", names="type_site",
-        color="type_site",
-        color_discrete_map={
-            "nécropole": "#6A3D9A", "habitat": "#1F78B4", "oppidum": "#E31A1C",
-            "dépôt": "#FF7F00", "atelier": "#B15928", "indéterminé": "#B2DF8A",
-        },
+        color="type_site", color_discrete_map=_TYPE_COLORS,
         hole=0.4,
     )
     fig_type.update_layout(
@@ -65,6 +70,7 @@ def update_stats(db_path: str):
         title="Types de sites (Fer)",
     )
 
+    # Top communes bar
     commune_stats = get_commune_stats(db)
     top = pd.DataFrame(commune_stats).nlargest(20, "fer_notices")
     fig_communes = px.bar(
@@ -79,12 +85,20 @@ def update_stats(db_path: str):
         yaxis={"categoryorder": "total ascending"},
     )
 
+    # Vestiges treemap
     import duckdb
     con = duckdb.connect(str(db), read_only=True)
     vestiges_df = con.execute("""
         SELECT v.vestige, COUNT(*) as cnt
         FROM vestiges v JOIN notices n ON v.notice_id = n.notice_id
         WHERE n.has_iron_age GROUP BY v.vestige ORDER BY cnt DESC LIMIT 30
+    """).fetchdf()
+
+    # Confidence distribution
+    conf_df = con.execute("""
+        SELECT confidence_level, COUNT(*) as cnt
+        FROM notices WHERE has_iron_age
+        GROUP BY confidence_level ORDER BY confidence_level
     """).fetchdf()
     con.close()
 
@@ -98,7 +112,20 @@ def update_stats(db_path: str):
         margin={"t": 40, "b": 10},
     )
 
-    return kpis, fig_type, fig_communes, fig_vestiges
+    conf_colors = {"HIGH": "#33A02C", "MEDIUM": "#FF7F00", "LOW": "#E31A1C"}
+    fig_conf = px.bar(
+        conf_df, x="confidence_level", y="cnt",
+        color="confidence_level", color_discrete_map=conf_colors,
+        labels={"cnt": "Notices", "confidence_level": "Confiance"},
+        title="Niveaux de confiance (Fer)",
+    )
+    fig_conf.update_layout(
+        showlegend=False,
+        paper_bgcolor="#0f0f1a", plot_bgcolor="#16182d",
+        font_color="white", margin={"t": 40},
+    )
+
+    return kpis, fig_type, fig_communes, fig_vestiges, fig_conf
 
 
 def _kpi_card(label: str, value: int, color: str) -> dbc.Col:
