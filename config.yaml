@@ -1,0 +1,20 @@
+pdf_path: "../../RawData/GrosFichiers - Béhague/CAG Bas-Rhin.pdf"
+
+page_range:
+  start: 154
+  end: 660
+
+source_label: cag_67
+department: "67"
+
+db_path: data/cag67.duckdb
+
+geocoding:
+  provider: ban
+  cache_path: data/geocoder_cache.json
+
+ui:
+  port: 8051
+  debug: true
+
+log_level: INFO

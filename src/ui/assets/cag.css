@@ -1,0 +1,48 @@
+/* CAG 67/1 — Archaeological dark theme */
+
+body {
+    background-color: #0f0f1a !important;
+    color: #e0e0e0 !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+.card {
+    background-color: #16182d !important;
+    border: 1px solid #2a2d50 !important;
+}
+
+.list-group-item {
+    background-color: #16182d !important;
+    border-color: #2a2d50 !important;
+    color: #e0e0e0 !important;
+}
+
+.list-group-item:hover,
+.list-group-item.active {
+    background-color: #1e2140 !important;
+    border-color: #D95F02 !important;
+}
+
+.badge.bg-info {
+    background-color: #1B9E77 !important;
+}
+
+.badge.bg-danger {
+    background-color: #D95F02 !important;
+}
+
+.form-control,
+.Select-control {
+    background-color: #16182d !important;
+    border-color: #2a2d50 !important;
+    color: #e0e0e0 !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th {
+    background-color: #16182d !important;
+    color: #D95F02 !important;
+}
+
+hr {
+    border-color: #2a2d50 !important;
+}
