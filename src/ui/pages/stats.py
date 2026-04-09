@@ -9,7 +9,7 @@ import plotly.express as px
 import pandas as pd
 from pathlib import Path
 
-from ...storage.queries import get_summary_stats, get_commune_stats
+from src.storage.queries import get_summary_stats, get_commune_stats
 
 dash.register_page(__name__, path="/stats", name="Statistiques", title="CAG 67/1 — Stats")
 

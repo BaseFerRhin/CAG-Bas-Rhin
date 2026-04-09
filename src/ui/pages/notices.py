@@ -7,7 +7,7 @@ from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 from pathlib import Path
 
-from ...storage.queries import get_all_notices
+from src.storage.queries import get_all_notices
 
 dash.register_page(__name__, path="/notices", name="Notices", title="CAG 67/1 — Notices")
 

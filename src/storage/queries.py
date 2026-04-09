@@ -197,21 +197,36 @@ def geocode_communes(db_path: Path, *, cache_path: Path | None = None, throttle_
     return count
 
 
+def _clean_commune_name(raw: str) -> str:
+    """Extract clean commune name from potentially polluted PDF text."""
+    import re
+    name = raw.split("\n")[0].strip()
+    name = re.sub(r"\s*\(.*$", "", name)
+    name = re.sub(r"\s*(en allemand|antérieu?rement|alt\.).*$", "", name, flags=re.IGNORECASE)
+    return name.strip()
+
+
 def _geocode_ban(commune: str, *, department: str = "67") -> tuple[float, float] | None:
+    clean = _clean_commune_name(commune)
+    if not clean or len(clean) < 2:
+        return None
     try:
         resp = httpx.get(
             "https://api-adresse.data.gouv.fr/search/",
-            params={"q": commune, "type": "municipality", "citycode": department, "limit": 1},
+            params={"q": f"{clean} Bas-Rhin", "type": "municipality", "limit": 1},
             timeout=10,
         )
         resp.raise_for_status()
         features = resp.json().get("features", [])
         if not features:
             return None
-        coords = features[0]["geometry"]["coordinates"]
-        return coords[1], coords[0]
+        props = features[0].get("properties", {})
+        if props.get("context", "").startswith("67") or "Bas-Rhin" in props.get("context", ""):
+            coords = features[0]["geometry"]["coordinates"]
+            return coords[1], coords[0]
+        return None
     except Exception as exc:
-        logger.debug("BAN geocode failed for %s: %s", commune, exc)
+        logger.debug("BAN geocode failed for %s: %s", clean, exc)
         return None
 
 

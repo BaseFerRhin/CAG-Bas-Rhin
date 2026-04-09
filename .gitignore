@@ -20,5 +20,8 @@ data/communes_geo.json
 # OS
 .DS_Store
 
+# Raw screenshots (clean copies in docs/images/)
+Capture d*
+
 # Env
 .env

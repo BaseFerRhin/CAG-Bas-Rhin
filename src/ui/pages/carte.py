@@ -8,8 +8,8 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 from pathlib import Path
 
-from ...storage.queries import get_commune_stats, get_all_notices
-from ..components.commune_map import create_commune_map, empty_map, TYPE_COLORS
+from src.storage.queries import get_commune_stats, get_all_notices
+from src.ui.components.commune_map import create_commune_map, empty_map, TYPE_COLORS
 
 dash.register_page(__name__, path="/", name="Carte", title="CAG 67/1 — Carte")
 
